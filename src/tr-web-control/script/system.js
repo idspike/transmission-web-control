@@ -1,8 +1,8 @@
 // Current system global object
 var system = {
-	version: "1.6.1",
+	version: "1.6.2",
 	rootPath: "tr-web-control/",
-	codeupdate: "20200913",
+	codeupdate: "20220605",
 	configHead: "transmission-web-control",
 	// default config, can be customized in config.js
 	config: {
@@ -47,7 +47,6 @@ var system = {
 			labels: false
 		},
 		labels: [],
-		labelMaps: {},
 		ignoreVersion: []
 	},
 	storageKeys: {
@@ -1055,30 +1054,29 @@ var system = {
 	},
 	/**
 	 * 格式化指定种子的标签
-	 * @param ids 标签id列表, 数组
-	 * @param hashString 种子的hash值
+	 * @param torrentLabels 标签列表, 数组
+	 * @param torrent 种子的信息
 	 * @return 返回一组标签内容
 	 */
-	formetTorrentLabels: function(ids, hashString) {
+	formetTorrentLabels: function(torrentLabels, torrent) {
 		var box = $("<div style='position: relative;'/>");
-		if (ids) {
-			if (typeof(ids)=="string") {
-				ids = ids.split(",");
-			}
-
-			for (var i = 0; i < ids.length; i++) {
-				var index = ids[i];
-				var item = this.config.labels[index];
-				if (item) {
-					$("<span class='user-label'/>").html(item.name).css({
-						"background-color": item.color,
-						"color": (getGrayLevel(item.color) > 0.5 ? "#000" : "#fff")
-					}).appendTo(box);
-				}
-			}
-		}
 		
-		var button = $("<button onclick='javascript:system.setTorrentLabels(this,\""+hashString+"\");' data-options=\"iconCls:'iconfont tr-icon-labels',plain:true\" class=\"easyui-linkbutton user-label-set\"/>").appendTo(box);
+		var labels = {};
+		system.config.labels.forEach(e => {
+			labels[e.name] = e;
+		});
+
+		torrentLabels.forEach(e => {
+			var item = labels[e];
+			if (item) {
+				$("<span class='user-label'/>").html(item.name).css({
+					"background-color": item.color,
+					"color": (getGrayLevel(item.color) > 0.5 ? "#000" : "#fff")
+				}).appendTo(box);
+			}
+		});
+		
+		var button = $("<button onclick='javascript:system.setTorrentLabels(this,\""+torrent.id+"\");' data-options=\"iconCls:'iconfont tr-icon-labels',plain:true\" class=\"easyui-linkbutton user-label-set\"/>").appendTo(box);
 		button.linkbutton();
 		button.find("span").first().attr({
 			"title": system.lang.dialog["torrent-setLabels"].title
@@ -1088,7 +1086,7 @@ var system = {
 	/**
 	 * 快速设置当前种子标签
 	 */
-	setTorrentLabels: function(button, hashString) {
+	setTorrentLabels: function(button, torrentId) {
 		system.openDialogFromTemplate({
 			id: "dialog-torrent-setLabels",
 			options: {
@@ -1097,7 +1095,7 @@ var system = {
 				height: 200
 			},
 			datas: {
-				"hashs": [hashString]
+				"torrentId": [torrentId]
 			},
 			type: 1,
 			source: $(button)
@@ -2206,8 +2204,8 @@ var system = {
 							torrents = [];
 							for (var key in transmission.torrents.all) {
 								var item = transmission.torrents.all[key];
-								var labels = this.config.labelMaps[item.hashString];
-								if (labels && $.inArray(labelIndex, labels)!=-1) {
+								var label = this.config.labels[labelIndex];
+								if (item.labels && $.inArray(label.name, item.labels)!=-1) {
 									torrents.push(item);
 								}
 							}
@@ -2247,10 +2245,6 @@ var system = {
 			data.completeSize = Math.max(0, torrents[index].totalSize - torrents[index].leftUntilDone);
 			data.leecherCount = torrents[index].leecher;
 			data.seederCount = torrents[index].seeder;
-			var labels = this.config.labelMaps[data.hashString];
-			if (labels) {
-				data.labels = labels;
-			}
 			
 			//data.leecherCount = torrents[index].leecher;
 			/*
@@ -2525,15 +2519,12 @@ var system = {
 			this.showStatus(this.lang.system.status.queuefinish);
 			//this.config.autoReload = true;
 			this.getServerStatus();
-			if(labels != null)
-				system.saveConfig();
+			
 			return;
 		}
 		this.showStatus(this.lang.system.status.queue + (index + 1) + "/" + (count) + "<br/>" + url, 0);
-		transmission.addTorrentFromUrl(url, savepath, autostart, function (data) {
+		transmission.addTorrentFromUrl(url, savepath, autostart, labels, function (data) {
 			system.addTorrentsToServer(urls, count, autostart, savepath, labels);
-			if(labels != null && data.hashString != null)
-				system.saveLabelsConfig(data.hashString, labels);
 		});
 	},
 	// Starts / pauses the selected torrent
@@ -3063,7 +3054,7 @@ var system = {
 
 				case "labels":
 					field.formatter = function(value, row, index) {
-						return system.formetTorrentLabels(value, row.hashString);
+						return system.formetTorrentLabels(value, row);
 					}
 					break;
 				
@@ -3200,16 +3191,6 @@ var system = {
 		}
 		this.saveUserConfig();
 	},
-	// Save labels config for torrent if need
-	saveLabelsConfig: function(hash, labels){
-		if(system.config.nav.labels){
-			if (labels.length==0) {
-				delete system.config.labelMaps[hash];
-			} else {
-				system.config.labelMaps[hash] = labels;
-			}
-		}
-	},
 	readUserConfig: function () {
 		var local = window.localStorage[this.configHead];
 		if (local) {
@@ -3221,12 +3202,12 @@ var system = {
 		window.localStorage[this.configHead] = JSON.stringify(this.userConfig);
 	},
 	// Upload the torrent file		
-	uploadTorrentFile: function (fileInputId, savePath, paused, callback) {
+	uploadTorrentFile: function (fileInputId, savePath, paused, labels, callback) {
 		// Determines whether the FileReader interface is supported
 		if (window.FileReader) {
 			var files = $("input[id='" + fileInputId + "']")[0].files;
 			$.each(files, function (index, file) {
-				transmission.addTorrentFromFile(file, savePath, paused, callback, files.length);
+				transmission.addTorrentFromFile(file, savePath, paused, labels, callback, files.length);
 			});
 		} else {
 			alert(system.lang["public"]["text-browsers-not-support-features"]);

@@ -746,7 +746,7 @@ var system = {
 			return;
 		}
 		this.showStatus(this.lang.system.status.queue, (count - index + 1));
-		transmission.addTorrentFromUrl(url, savepath, autostart, function (data) {
+		transmission.addTorrentFromUrl(url, savepath, autostart, [], function (data) {
 			system.addTorrentsToServer(urls, count, autostart, savepath, callback);
 		});
 	},

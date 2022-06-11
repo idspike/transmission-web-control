@@ -186,25 +186,16 @@
 
 			var files = thisDialog.data("files");
 			var uploaded = 0;
-			var islabelChange = false;
 			$.each(files,function(i,item){
-				transmission.addTorrentFromFile(item,dir,!autostart,function(data, count){
+				transmission.addTorrentFromFile(item, dir, !autostart, labelPage.getLabels(), function(data, count){
 					uploaded++;
 					thisDialog.find("#dialog-torrent-add-queue").html(uploaded+"/"+files.length).show();
-
-					// save label for torrent
-					if(system.config.nav.labels && data.hashString != null){
-						islabelChange = true;
-						system.saveLabelsConfig(data.hashString, labelPage.getLabels());
-					}
 
 					if (uploaded==files.length)
 					{
 						thisDialog.find("#dialog-torrent-add-queue").html("").hide();
 						button.linkbutton({disabled:false});
 						thisDialog.dialog("close");
-						if(islabelChange)
-							system.saveConfig();
 					}
 					system.reloadData();
 				});

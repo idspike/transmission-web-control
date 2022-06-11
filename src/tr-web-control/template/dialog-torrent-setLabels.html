@@ -21,7 +21,8 @@
 <script type="text/javascript">
 	(function(thisDialog) {
 		var page = {
-			hashs: thisDialog.data("hashs")||[],
+			torrentId: thisDialog.data("torrentId"),
+			torrent: {},
 			divSelectedList: $("#divSelectedList", thisDialog),
 			init: function() {
 				system.resetLangText(thisDialog);
@@ -55,19 +56,24 @@
 					}
 				}
 
-				if (this.hashs.length==1) {
-					var labels = system.config.labelMaps[this.hashs[0]];
-					if (labels) {
-						for (var i = 0; i < labels.length; i++) {
-							var index = labels[i];
-							var item = system.config.labels[index];
-							if (item) {
-								this.setLabel("#divAvailableList", "#divSelectedList", item);
-								$(".label-index-"+index, box).remove();
-							}
-						}
-					}
+				var torrent = transmission.torrents.datas[this.torrentId];
+				console.log(torrent);
+				if (!torrent) {
+					alert(system.lang["error"]["data-error"]);
+					return;
 				}
+				var labels = {};
+				system.config.labels.forEach(e => {
+					 labels[e.name] = e;
+				});
+
+				torrent.labels.forEach(e => {
+					var item = labels[e];
+					if (item) {
+						this.setLabel("#divAvailableList", "#divSelectedList", item);
+						$(".label-index-"+item.index, box).remove();
+					}
+				});
 			},
 			createLabel: function(label) {
 				return $("<a href='javascript:void(0);' class='user-label-big label-index-"+label.index+"'/>").data("label", label).html(label.name).css({
@@ -86,27 +92,30 @@
 			save: function() {
 				var items = $(".user-label-big", this.divSelectedList);
 				var labels = [];
-
+				var torrentId = parseInt(this.torrentId);
+				
 				for (var index = 0; index < items.length; index++) {
 					var item = $(items[index]);
 					var label = item.data("label");
-					labels.push(label.index);
+					labels.push(label.name);
 				}
-
-				for (var index = 0; index < this.hashs.length; index++) {
-					var item = this.hashs[index];
-					if (labels.length==0) {
-						delete system.config.labelMaps[item];
-					} else {
-						system.config.labelMaps[item] = labels;
+				transmission.exec({
+						method:"torrent-set"
+						,arguments:{
+							ids:torrentId
+							,labels:labels
+						}
 					}
-				}
-
-				system.saveConfig();
-
-				setTimeout(function(){
-					system.control.torrentlist.refresh();
-				}, 200);
+					,function(data){
+						if (data.result == "success") {
+							transmission.torrents.datas[torrentId].labels = labels;
+							system.saveConfig();
+							this.close();
+						} else {
+							alert(data.error);
+						}
+					}
+				);
 			},
 			close: function() {
 				var source = thisDialog.data("popoverSource");

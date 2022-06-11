@@ -151,7 +151,7 @@
 				for (var index = 0; index < items.length; index++) {
 					var item = $(items[index]);
 					var label = item.data("label");
-					labels.push(label.index);
+					labels.push(label.name);
 				}
 				return labels;
 			}
@@ -205,7 +205,7 @@
 				if (system.serverConfig["rpc-version"]>=15)
 				{
 					var uploaded = 0;
-					system.uploadTorrentFile("torrent_upload_file",dir,!autostart,function(data,count){
+					system.uploadTorrentFile("torrent_upload_file", dir, !autostart, labelPage.getLabels(), function(data,count){
 						button.linkbutton({iconCls:icon,disabled:false});
 						uploaded++;
 						thisDialog.find("#dialog-torrent-add-queue").html(uploaded+"/"+count).show();
@@ -213,10 +213,6 @@
 						{
 							thisDialog.find("#dialog-torrent-add-queue").html("").hide();
 							thisDialog.dialog("close");
-						}
-						if(system.config.nav.labels && data.hashString != null){
-							system.saveLabelsConfig(data.hashString, labelPage.getLabels());
-							system.saveConfig();
 						}
 						system.reloadData();
 					});
@@ -297,10 +293,7 @@
 					//alert(data);
 					if (callback)
 						callback();
-					if(system.config.nav.labels && data.hashString != null){
-						system.saveLabelsConfig(data.hashString, labelPage.getLabels());
-						system.saveConfig();
-					}
+
 					thisDialog.dialog("close");
 					system.reloadData();
 				}
