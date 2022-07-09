@@ -153,7 +153,7 @@ var transmission = {
 		});
 	},
 	// 添加种子
-	addTorrentFromUrl: function(url, savepath, autostart, callback) {
+	addTorrentFromUrl: function(url, savepath, autostart, labels, callback) {
 		// 磁性连接（代码来自原版WEBUI）
 		if (url.match(/^[0-9a-f]{40}$/i)) {
 			url = 'magnet:?xt=urn:btih:' + url;
@@ -162,7 +162,9 @@ var transmission = {
 			method: "torrent-add",
 			arguments: {
 				filename: url,
-				paused: (!autostart)
+				paused: (!autostart),
+				// todo: transmission api v4.0后才支持
+				// labels: labels
 			}
 		};
 
@@ -175,7 +177,13 @@ var transmission = {
 				case "success":
 					if (callback) {
 						if (data.arguments["torrent-added"]) {
-							callback(data.arguments["torrent-added"]);
+							transmission.exec({
+								method:"torrent-set"
+								,arguments:{
+									ids:data.arguments["torrent-added"]["id"]
+									,labels:labels
+								}
+							}, callback(data.arguments["torrent-added"]));
 						}
 						// 重复的种子
 						else if (data.arguments["torrent-duplicate"]) {
@@ -199,8 +207,9 @@ var transmission = {
 			}
 		});
 	},
+	
 	// 从文件内容增加种子
-	addTorrentFromFile: function(file, savePath, paused, callback, filecount) {
+	addTorrentFromFile: function(file, savePath, paused, labels, callback, filecount) {
 		var fileReader = new FileReader();
 
 		fileReader.onload = function(e) {
@@ -217,7 +226,9 @@ var transmission = {
 				arguments: {
 					metainfo: metainfo,
 					"download-dir": savePath,
-					paused: paused
+					paused: paused,
+					// todo: transmission api v4.0后才支持
+					//labels: labels
 				}
 			}, function(data) {
 				switch (data.result) {
@@ -225,7 +236,13 @@ var transmission = {
 					case "success":
 						if (callback) {
 							if(data.arguments["torrent-added"] != null)
-								callback(data.arguments["torrent-added"], filecount);
+								transmission.exec({
+									method:"torrent-set"
+									,arguments:{
+										ids:data.arguments["torrent-added"]["id"]
+										,labels:labels
+									}
+								}, callback(data.arguments["torrent-added"], filecount));
 							else if (data.arguments["torrent-duplicate"] != null)
 								callback({
 									status: "duplicate",

@@ -989,18 +989,6 @@
             system.config.labels.splice(rowIndex, 1);
           }
 
-          // 清除已打过标签的种子
-          for (var key in system.config.labelMaps) {
-            if (system.config.labelMaps.hasOwnProperty(key)) {
-              var items = system.config.labelMaps[key];
-              for (var index = items.length - 1; index >= 0; index--) {
-                if ($.inArray(items[index], removed) != -1) {
-                  items.splice(index, 1);
-                }
-              }
-            }
-          }
-
           system.saveConfig();
           system.control.torrentlist.refresh();
           system.resetNavLabels(true);
@@ -1010,8 +998,7 @@
         // 导出
         $('#btn-UserLabel-export', thisDialog).on('click', function () {
           var data = {
-            labels: system.config.labels,
-            maps: system.config.labelMaps
+            labels: system.config.labels
           };
           var exportData = JSON.parse(JSON.stringify(data));
 
@@ -1031,10 +1018,9 @@
               }
             }
 
-            if (item.labels && item.maps) {
+            if (item.labels) {
               if (confirm(system.lang.dialog['system-config']['labels-manage']['import-confirm'])) {
                 system.config.labels = item.labels;
-                system.config.labelMaps = item.maps;
                 system.saveConfig();
                 reloadData();
                 system.control.torrentlist.refresh();
