@@ -110,7 +110,7 @@
 						if (data.result == "success") {
 							transmission.torrents.datas[torrentId].labels = labels;
 							system.saveConfig();
-							this.close();
+							location.reload();
 						} else {
 							alert(data.error);
 						}
